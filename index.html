@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Mobile Maze Runner</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
+        
+        /* UI OVERLAY */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+        }
+
+        #message-box {
+            position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%);
+            text-align: center; color: white; background: rgba(0,0,0,0.9);
+            padding: 20px; border: 2px solid #fff; border-radius: 10px;
+            pointer-events: auto; z-index: 20; min-width: 80%;
+        }
+        h1 { margin: 0 0 10px 0; font-size: 1.5rem; text-transform: uppercase; color: #0f0; }
+        p { color: #ccc; margin: 10px 0; font-size: 0.9rem; }
+
+        /* MINIMAP & BUTTONS */
+        #minimap-container {
+            position: absolute; top: 10px; right: 10px;
+            width: 120px; height: 120px; background: #000;
+            border: 2px solid #555; border-radius: 4px; opacity: 0.3;
+            transition: opacity 0.3s;
+        }
+        #minimap { width: 100%; height: 100%; }
+
+        #map-btn {
+            position: absolute; top: 140px; right: 10px;
+            width: 50px; height: 50px; background: rgba(255,255,255,0.2);
+            border: 2px solid #fff; border-radius: 50%; color: white;
+            font-weight: bold; pointer-events: auto; display: flex;
+            align-items: center; justify-content: center;
+        }
+        #map-btn:active { background: #0f0; color: #000; }
+
+        #timer {
+            position: absolute; top: 10px; left: 10px;
+            font-size: 20px; color: #fff; font-weight: bold;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        /* JOYSTICK UI */
+        .joystick-zone {
+            position: absolute; bottom: 50px; left: 50px;
+            width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+            display: none; /* Hidden until game starts */
+        }
+        .joystick-knob {
+            position: absolute; top: 50%; left: 50%;
+            width: 50px; height: 50px;
+            background: rgba(0, 255, 0, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        /* LOOK ZONE (Right side of screen) */
+        #look-zone {
+            position: absolute; top: 0; right: 0; width: 50%; height: 100%;
+            pointer-events: auto; z-index: 5;
+        }
+        /* MOVE ZONE (Left side of screen) */
+        #move-zone {
+            position: absolute; top: 0; left: 0; width: 50%; height: 100%;
+            pointer-events: auto; z-index: 5;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="timer">TIME: 00:00</div>
+        
+        <div id="minimap-container">
+            <canvas id="minimap"></canvas>
+        </div>
+        <div id="map-btn">MAP</div>
+
+        <div id="message-box">
+            <h1>Mobile Maze</h1>
+            <p><strong>Left Thumb:</strong> Move</p>
+            <p><strong>Right Thumb:</strong> Look</p>
+            <p style="color:#0f0; font-weight:bold; font-size: 1.2rem; margin-top:15px;">TAP TO START</p>
+        </div>
+
+        <div class="joystick-zone" id="joystick-base">
+            <div class="joystick-knob" id="joystick-knob"></div>
+        </div>
+    </div>
+
+    <div id="move-zone"></div>
+    <div id="look-zone"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- AUDIO ---
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playStep() {
+            if (!audioCtx) return;
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.frequency.setValueAtTime(60, audioCtx.currentTime);
+            o.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.1);
+            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + 0.15);
+        }
+        
+        function playWin() {
+            if (!audioCtx) return;
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.type='triangle';
+            o.frequency.setValueAtTime(220, audioCtx.currentTime);
+            o.frequency.linearRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+            g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.0);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + 1.0);
+        }
+
+        // --- GAME CONFIG ---
+        const WALL_H = 4;
+        const SPEED = 25.0; // Adjusted for mobile
+        const SCALE = 3;
+        const LOOK_SPEED = 0.004;
+
+        // 1=Wall, 0=Path, 2=Start, 3=Exit
+        const mapData = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [2,0,0,1,0,0,1,0,0,0,1,0,0,0,1],
+            [1,1,0,1,0,1,1,0,1,0,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
+            [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+            [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+            [1,0,1,0,1,1,1,1,1,1,1,0,1,0,1],
+            [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+            [1,1,1,0,1,1,1,0,1,0,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
+            [1,0,1,1,1,1,1,1,1,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,3,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        let camera, scene, renderer;
+        let prevTime = performance.now();
+        let gameActive = false;
+        let isWon = false;
+        let startTime = 0;
+        let exitPos = new THREE.Vector3();
+        
+        // Movement Vars
+        let moveForward = 0; // -1 to 1
+        let moveRight = 0;   // -1 to 1
+        let velocity = new THREE.Vector3();
+        const wallColliders = [];
+        const wallsMesh = [];
+
+        // Head Bob
+        let headBobTimer = 0;
+
+        // Setup
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.FogExp2(0x050505, 0.03);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
+            
+            // Lights
+            const ambient = new THREE.AmbientLight(0x505050);
+            scene.add(ambient);
+            const torch = new THREE.SpotLight(0xffffff, 2, 30, Math.PI/3);
+            camera.add(torch);
+            camera.add(torch.target);
+            torch.target.position.set(0,0,-1);
+            scene.add(camera);
+
+            // Textures
+            const cvs = document.createElement('canvas'); cvs.width=128; cvs.height=128;
+            const ctx = cvs.getContext('2d');
+            ctx.fillStyle='#444'; ctx.fillRect(0,0,128,128);
+            ctx.fillStyle='#555'; ctx.fillRect(0,0,64,64); ctx.fillRect(64,64,64,64);
+            const wallTex = new THREE.CanvasTexture(cvs);
+            wallTex.magFilter = THREE.NearestFilter;
+            
+            const wallMat = new THREE.MeshStandardMaterial({map:wallTex});
+            const floorMat = new THREE.MeshStandardMaterial({color:0x222222});
+            const exitMat = new THREE.MeshBasicMaterial({color:0x00ff00, transparent:true, opacity:0.6});
+
+            // Build Map
+            const geo = new THREE.BoxGeometry(SCALE, WALL_H, SCALE);
+            
+            for(let z=0; z<mapData.length; z++){
+                for(let x=0; x<mapData[0].length; x++){
+                    let val = mapData[z][x];
+                    let px = x*SCALE, pz = z*SCALE;
+                    
+                    if(val===1){
+                        const w = new THREE.Mesh(geo, wallMat.clone());
+                        w.position.set(px, WALL_H/2, pz);
+                        scene.add(w);
+                        const box = new THREE.Box3().setFromObject(w);
+                        box.expandByScalar(-0.1); // Hitbox slightly smaller to prevent sticking
+                        wallColliders.push(box);
+                        wallsMesh.push(w);
+                    } else if(val===2){
+                        camera.position.set(px, 1.6, pz);
+                    } else if(val===3){
+                        const e = new THREE.Mesh(geo, exitMat);
+                        e.position.set(px, WALL_H/2, pz);
+                        scene.add(e);
+                        exitPos.set(px, WALL_H, pz);
+                        const el = new THREE.PointLight(0x00ff00, 2, 10);
+                        el.position.set(px, 2, pz);
+                        scene.add(el);
+                    }
+                }
+            }
+            
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100,100), floorMat);
+            floor.rotation.x = -Math.PI/2;
+            scene.add(floor);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({antialias:true});
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Listeners
+            document.getElementById('message-box').addEventListener('click', startGame);
+            document.getElementById('message-box').addEventListener('touchstart', startGame);
+            
+            document.getElementById('map-btn').addEventListener('touchstart', (e)=>{
+                e.preventDefault();
+                const m = document.getElementById('minimap-container');
+                m.style.opacity = m.style.opacity === '1' ? '0.3' : '1';
+            });
+
+            setupTouchControls();
+        }
+
+        function startGame(e) {
+            e.preventDefault();
+            if(gameActive) return;
+            initAudio();
+            document.getElementById('message-box').style.display = 'none';
+            document.getElementById('joystick-base').style.display = 'block';
+            gameActive = true;
+            startTime = performance.now();
+        }
+
+        function setupTouchControls() {
+            // LEFT JOYSTICK (Movement)
+            const zone = document.getElementById('move-zone');
+            const stickBase = document.getElementById('joystick-base');
+            const stickKnob = document.getElementById('joystick-knob');
+            let startX=0, startY=0;
+
+            zone.addEventListener('touchstart', (e)=>{
+                if(!gameActive) return;
+                const t = e.changedTouches[0];
+                startX = t.clientX; startY = t.clientY;
+                stickBase.style.left = (startX - 60) + 'px';
+                stickBase.style.bottom = 'auto';
+                stickBase.style.top = (startY - 60) + 'px';
+                stickBase.style.display = 'block';
+            });
+
+            zone.addEventListener('touchmove', (e)=>{
+                if(!gameActive) return;
+                e.preventDefault();
+                const t = e.changedTouches[0];
+                let dx = t.clientX - startX;
+                let dy = t.clientY - startY;
+                
+                // Clamp knob visual
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const maxDist = 40;
+                if(dist > maxDist) {
+                    dx = (dx/dist)*maxDist;
+                    dy = (dy/dist)*maxDist;
+                }
+                
+                stickKnob.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
+                
+                // Set Move Vectors (-1 to 1)
+                moveRight = dx / maxDist;
+                moveForward = -dy / maxDist; // Up is negative Y in screen pixels
+            });
+
+            zone.addEventListener('touchend', (e)=>{
+                stickBase.style.display = 'none'; // Optional: keep hidden or reset to corner
+                moveForward = 0;
+                moveRight = 0;
+                stickKnob.style.transform = `translate(-50%, -50%)`;
+            });
+
+            // RIGHT ZONE (Looking)
+            const lookZone = document.getElementById('look-zone');
+            let lastLookX=0, lastLookY=0;
+
+            lookZone.addEventListener('touchstart', (e)=>{
+                lastLookX = e.changedTouches[0].clientX;
+                lastLookY = e.changedTouches[0].clientY;
+            });
+
+            lookZone.addEventListener('touchmove', (e)=>{
+                if(!gameActive) return;
+                e.preventDefault();
+                const t = e.changedTouches[0];
+                const dx = t.clientX - lastLookX;
+                const dy = t.clientY - lastLookY;
+
+                // Rotate Camera
+                camera.rotation.y -= dx * LOOK_SPEED;
+                camera.rotation.x -= dy * LOOK_SPEED;
+                // Clamp Pitch
+                camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
+
+                lastLookX = t.clientX;
+                lastLookY = t.clientY;
+            });
+        }
+
+        function checkCol(pos) {
+            const player = new THREE.Box3();
+            player.min.set(pos.x-0.4, 0, pos.z-0.4);
+            player.max.set(pos.x+0.4, 2, pos.z+0.4);
+            for(let b of wallColliders) if(player.intersectsBox(b)) return true;
+            return false;
+        }
+
+        function updateMinimap() {
+            const c = document.getElementById('minimap');
+            const ctx = c.getContext('2d');
+            c.width = 100; c.height = 100;
+            const cw = 100/mapData[0].length;
+            const ch = 100/mapData.length;
+            
+            ctx.clearRect(0,0,100,100);
+            for(let z=0; z<mapData.length; z++){
+                for(let x=0; x<mapData[0].length; x++){
+                    if(mapData[z][x]===1) { ctx.fillStyle='#555'; ctx.fillRect(x*cw, z*ch, cw, ch); }
+                    if(mapData[z][x]===3) { ctx.fillStyle='#0f0'; ctx.fillRect(x*cw, z*ch, cw, ch); }
+                }
+            }
+            const px = camera.position.x/SCALE;
+            const pz = camera.position.z/SCALE;
+            ctx.fillStyle='red';
+            ctx.beginPath(); ctx.arc(px*cw, pz*ch, 3, 0, 6); ctx.fill();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now();
+            const delta = Math.min((time-prevTime)/1000, 0.1);
+            prevTime = time;
+
+            if(isWon) {
+                const radius = 15;
+                camera.position.x = exitPos.x + radius*Math.cos(time*0.0005);
+                camera.position.z = exitPos.z + radius*Math.sin(time*0.0005);
+                camera.lookAt(exitPos);
+                renderer.render(scene, camera);
+                return;
+            }
+
+            if(gameActive) {
+                // Update Timer
+                const elap = Math.floor((time-startTime)/1000);
+                const m = Math.floor(elap/60).toString().padStart(2,'0');
+                const s = (elap%60).toString().padStart(2,'0');
+                document.getElementById('timer').innerText = `TIME: ${m}:${s}`;
+
+                // Movement Logic
+                velocity.x -= velocity.x * 10.0 * delta; // Friction
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                // Get forward/right vectors based on where camera is looking
+                const fwd = new THREE.Vector3();
+                const side = new THREE.Vector3();
+                camera.getWorldDirection(fwd);
+                fwd.y = 0; fwd.normalize();
+                side.crossVectors(fwd, camera.up).normalize();
+
+                // Apply joystick input
+                if(Math.abs(moveForward)>0.1 || Math.abs(moveRight)>0.1) {
+                    velocity.addScaledVector(fwd, moveForward * SPEED * delta);
+                    velocity.addScaledVector(side, moveRight * SPEED * delta);
+                    
+                    // Head Bob
+                    headBobTimer += delta * 15;
+                    camera.position.y = 1.6 + Math.sin(headBobTimer)*0.1;
+                    if(Math.sin(headBobTimer) < -0.8 && (time%300 < 20)) playStep();
+                } else {
+                    camera.position.y = THREE.MathUtils.lerp(camera.position.y, 1.6, delta*10);
+                }
+
+                // Apply Velocity & Collision
+                // X Movement
+                camera.position.addScaledVector(side, velocity.dot(side) * delta);
+                camera.position.addScaledVector(fwd, velocity.dot(fwd) * delta);
+
+                // Check collision (Simple Revert)
+                if(checkCol(camera.position)) {
+                    // Try reverting X only
+                    camera.position.addScaledVector(side, -velocity.dot(side) * delta);
+                    if(checkCol(camera.position)) {
+                        // Still stuck? Revert Z only
+                        camera.position.addScaledVector(side, velocity.dot(side) * delta); // Put X back
+                        camera.position.addScaledVector(fwd, -velocity.dot(fwd) * delta); // Revert Z
+                        if(checkCol(camera.position)) {
+                            // Still stuck? Revert Both
+                            camera.position.addScaledVector(side, -velocity.dot(side) * delta);
+                        }
+                    }
+                }
+
+                // Check Win
+                const pX = Math.round(camera.position.x/SCALE);
+                const pZ = Math.round(camera.position.z/SCALE);
+                if(mapData[pZ] && mapData[pZ][pX] === 3) {
+                    isWon = true;
+                    playWin();
+                    document.getElementById('message-box').style.display = 'block';
+                    document.getElementById('message-box').innerHTML = `<h1 style="color:#0f0">ESCAPED!</h1><p>Time: ${m}:${s}</p>`;
+                    document.getElementById('joystick-base').style.display='none';
+                }
+            }
+
+            updateMinimap();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

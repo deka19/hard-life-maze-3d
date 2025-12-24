@@ -3,70 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maze of Life: Enhanced</title>
+    <title>Maze of Life: Tactical</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
-        /* UI Layer */
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-        }
-        /* Status Text */
-        #status { position: absolute; top: 10px; right: 20px; color: #fff; font-size: 14px; text-align: right; }
         
-        /* Mini-Map Styles */
-        #minimap-container {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 200px;
-            height: 200px;
-            background: rgba(0,0,0,0.9);
-            border: 2px solid #0f0;
+        /* UI Layer */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        /* Large Tactical Map */
+        #map-container {
             display: none; /* Hidden by default */
-            pointer-events: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: rgba(0, 10, 0, 0.95);
+            border: 4px solid #0f0;
+            box-shadow: 0 0 50px rgba(0, 255, 0, 0.2);
+            z-index: 1000;
         }
-        #minimapCanvas {
-            width: 100%;
-            height: 100%;
+        #mapCanvas { width: 100%; height: 100%; }
+        #map-label {
+            position: absolute; bottom: 10px; width: 100%; text-align: center;
+            color: #0f0; font-weight: bold; font-size: 20px;
+            text-shadow: 0 0 5px #0f0;
         }
 
-        /* Blocker/Start Screen */
+        /* Start Screen */
         #blocker {
             pointer-events: auto;
             position: absolute; top: 0; left: 0;
-            background-color: rgba(0,0,0,0.85);
             width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.9);
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             color: #0f0;
             text-align: center;
-            transition: opacity 0.5s;
+            z-index: 2000;
         }
-        h1 { margin: 0; font-size: 40px; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 10px #0f0; }
-        p { font-size: 18px; color: #ccc; }
-        .controls-box { border: 1px solid #0f0; padding: 20px; background: rgba(0, 50, 0, 0.5); margin-top: 20px; cursor: pointer; }
-        .controls-box:hover { background: rgba(0, 80, 0, 0.8); }
-        .key { border: 1px solid #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;}
+        h1 { margin: 0; font-size: 48px; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 20px #0f0; }
+        .btn { 
+            border: 2px solid #0f0; padding: 20px 40px; 
+            background: rgba(0, 50, 0, 0.6); margin-top: 30px; 
+            font-size: 24px; color: #fff; cursor: pointer; 
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #0f0; color: #000; box-shadow: 0 0 20px #0f0; }
+        .instructions { margin-top: 20px; color: #aaa; font-size: 16px; line-height: 1.6; }
+        .key { border: 1px solid #666; padding: 2px 6px; border-radius: 4px; color: #fff; }
     </style>
 </head>
 <body>
-    <div id="ui-layer">
-        <div id="status">Hold <span class="key">M</span> for Map<br>Find the Green Destiny</div>
-        <div id="minimap-container">
-            <canvas id="minimapCanvas" width="200" height="200"></canvas>
-        </div>
+    <div id="map-container">
+        <canvas id="mapCanvas" width="600" height="600"></canvas>
+        <div id="map-label">TACTICAL OVERLAY [LIVE]</div>
     </div>
 
-    <div id="blocker">
-        <div>
-            <h1>The Hard Path</h1>
-            <p>Life is a maze. Directions are confusing.</p>
-            <div class="controls-box" id="startBtn">
-                CLICK TO START<br><br>
-                [W,A,S,D] Move &nbsp;&nbsp; [SPACE] Jump<br>
-                [MOUSE] Look &nbsp;&nbsp; <strong>[Hold M] Map</strong>
+    <div id="ui-layer">
+        <div id="blocker">
+            <h1>MAZE OF LIFE</h1>
+            <div class="instructions">
+                Navigate the procedural labyrinth.<br>
+                Avoid the <span style="color:orange">Fire</span> and <span style="color:red">Blades</span>.<br>
+                Find the <span style="color:lime">Green Destiny</span>.
             </div>
+            <div class="instructions">
+                <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> Move &nbsp; 
+                <span class="key">SPACE</span> Jump &nbsp; 
+                <span class="key">Hold M</span> Map
+            </div>
+            <div class="btn" id="startBtn">CLICK TO INITIALIZE</div>
         </div>
     </div>
 
@@ -86,7 +94,7 @@
         import * as CANNON from 'cannon-es';
 
         // --- CONFIGURATION ---
-        const MAZE_SIZE = 25; // Must match grid below
+        const MAZE_SIZE = 25;
         const CELL_SIZE = 4;
         const WALL_HEIGHT = 4;
         
@@ -95,30 +103,16 @@
         let world, playerBody;
         let lastTime = performance.now();
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false;
-        
-        const obstacles = [];
+        let obstacles = [];
         let isGameActive = false;
-        let showMinimap = false;
-        let minimapCtx;
+        
+        // Map Globals
+        let showMap = false;
+        const mapCanvas = document.getElementById('mapCanvas');
+        const mapCtx = mapCanvas.getContext('2d');
+        const mapContainer = document.getElementById('map-container');
 
-        // --- PROCEDURAL TEXTURE GENERATION ---
-        function createProceduralTexture(color1, color2, scale = 1) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512; canvas.height = 512;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = color1;
-            ctx.fillRect(0,0,512,512);
-            for(let i=0; i<5000; i++) {
-                ctx.fillStyle = Math.random() > 0.5 ? color2 : '#000000';
-                ctx.globalAlpha = 0.1;
-                ctx.fillRect(Math.random()*512, Math.random()*512, Math.random()*50*scale, Math.random()*50*scale);
-            }
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-            return tex;
-        }
-
-        // --- MAZE DATA (1 = Wall, 0 = Path) ---
+        // Maze Grid (1=Wall, 0=Path)
         const mazeGrid = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
@@ -143,47 +137,51 @@
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
+        // --- INIT ---
         init();
         animate();
 
         function init() {
-            // 1. SETUP
+            // Scene Setup
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x101010, 0.035);
-            scene.background = new THREE.Color(0x101010);
+            scene.fog = new THREE.FogExp2(0x050505, 0.04);
+            scene.background = new THREE.Color(0x050505);
+
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+            
+            renderer = new THREE.WebGLRenderer({ antialias: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Performance cap
             renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.body.appendChild(renderer.domElement);
 
-            // Minimap Setup
-            minimapCtx = document.getElementById('minimapCanvas').getContext('2d');
-
-            // 2. PHYSICS
+            // Physics Setup
             world = new CANNON.World();
             world.gravity.set(0, -25, 0);
-            world.broadphase = new CANNON.SAPBroadphase(world);
             const physicsMaterial = new CANNON.Material('physics');
             const physicsContact = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, { friction: 0.0, restitution: 0.0 });
             world.addContactMaterial(physicsContact);
 
-            // 3. LIGHTING
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const flashLight = new THREE.SpotLight(0xffffff, 20, 30, Math.PI/6, 0.5, 1);
+            // Light
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+            
+            // Flashlight
+            const flashLight = new THREE.SpotLight(0xffffff, 30, 40, Math.PI/5, 0.5, 1);
+            flashLight.position.set(0,0,0);
+            flashLight.target.position.set(0,0,-1);
             camera.add(flashLight);
             camera.add(flashLight.target);
-            flashLight.target.position.set(0,0,-5);
             scene.add(camera);
 
-            // 4. BUILD MAZE
-            buildOptimizedMaze(physicsMaterial);
+            // Build Level
+            buildMaze(physicsMaterial);
+            addHazards();
 
-            // 5. PLAYER
+            // Player Setup
             const startX = (1 - MAZE_SIZE/2) * CELL_SIZE;
             const startZ = (1 - MAZE_SIZE/2) * CELL_SIZE;
+            
             playerBody = new CANNON.Body({ mass: 70, shape: new CANNON.Sphere(0.8), material: physicsMaterial });
             playerBody.position.set(startX, 5, startZ);
             playerBody.linearDamping = 0.95;
@@ -191,68 +189,90 @@
             world.addBody(playerBody);
 
             controls = new PointerLockControls(camera, renderer.domElement);
-            
-            // UI Listeners
-            const blocker = document.getElementById('blocker');
-            document.getElementById('startBtn').addEventListener('click', () => controls.lock());
-            controls.addEventListener('lock', () => { 
-                blocker.style.opacity = '0'; 
-                setTimeout(()=> blocker.style.display = 'none', 500);
-                isGameActive = true; 
-            });
-            controls.addEventListener('unlock', () => { 
-                blocker.style.display = 'flex'; 
-                setTimeout(()=> blocker.style.opacity = '1', 10);
-                isGameActive = false; 
-                showMinimap = false;
-                document.getElementById('minimap-container').style.display = 'none';
-            });
 
-            // Keyboard
-            document.addEventListener('keydown', (e) => onKey(e, true));
-            document.addEventListener('keyup', (e) => onKey(e, false));
-
-            // 6. HAZARDS
-            addHazards();
+            // Event Listeners
+            setupInputs();
             window.addEventListener('resize', onWindowResize);
         }
 
-        function onKey(event, isDown) {
-            switch (event.code) {
-                case 'KeyW': moveForward = isDown; break;
-                case 'KeyS': moveBackward = isDown; break;
-                case 'KeyA': moveLeft = isDown; break;
-                case 'KeyD': moveRight = isDown; break;
-                case 'Space': if(isDown && canJump) { playerBody.velocity.y = 12; canJump = false; } break;
-                case 'KeyM': 
-                    showMinimap = isDown; 
-                    document.getElementById('minimap-container').style.display = isDown ? 'block' : 'none';
-                    break;
-            }
+        function setupInputs() {
+            const startBtn = document.getElementById('startBtn');
+            const blocker = document.getElementById('blocker');
+
+            startBtn.addEventListener('click', () => {
+                controls.lock();
+            });
+
+            controls.addEventListener('lock', () => {
+                blocker.style.display = 'none';
+                isGameActive = true;
+            });
+
+            controls.addEventListener('unlock', () => {
+                blocker.style.display = 'flex';
+                isGameActive = false;
+                // Force map close if menu opens
+                showMap = false;
+                mapContainer.style.display = 'none';
+            });
+
+            document.addEventListener('keydown', (e) => {
+                switch(e.code) {
+                    case 'KeyW': moveForward = true; break;
+                    case 'KeyS': moveBackward = true; break;
+                    case 'KeyA': moveLeft = true; break;
+                    case 'KeyD': moveRight = true; break;
+                    case 'Space': if(canJump) { playerBody.velocity.y = 12; canJump = false; } break;
+                    case 'KeyM': 
+                        if(isGameActive) {
+                            showMap = true;
+                            mapContainer.style.display = 'block';
+                        }
+                        break;
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                switch(e.code) {
+                    case 'KeyW': moveForward = false; break;
+                    case 'KeyS': moveBackward = false; break;
+                    case 'KeyA': moveLeft = false; break;
+                    case 'KeyD': moveRight = false; break;
+                    case 'KeyM': 
+                        showMap = false;
+                        mapContainer.style.display = 'none';
+                        break;
+                }
+            });
         }
 
-        function buildOptimizedMaze(mat) {
-            const wallTex = createProceduralTexture('#4a4a4a', '#2a2a2a');
-            const floorTex = createProceduralTexture('#1a1a1a', '#0a0a0a', 0.5);
-            const boxGeo = new THREE.BoxGeometry(CELL_SIZE, WALL_HEIGHT, CELL_SIZE);
-            const wallMaterial = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.8, metalness: 0.2 });
-            let wallCount = 0;
-            for(let row of mazeGrid) for(let cell of row) if(cell === 1) wallCount++;
-            const wallMesh = new THREE.InstancedMesh(boxGeo, wallMaterial, wallCount);
+        function buildMaze(mat) {
+            // Simple procedural textures
+            const canvas = document.createElement('canvas'); canvas.width=128; canvas.height=128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle='#333'; ctx.fillRect(0,0,128,128);
+            ctx.fillStyle='#444'; ctx.fillRect(10,10,108,108);
+            const wallTex = new THREE.CanvasTexture(canvas);
+            
+            const wallGeo = new THREE.BoxGeometry(CELL_SIZE, WALL_HEIGHT, CELL_SIZE);
+            const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
+            const wallMesh = new THREE.InstancedMesh(wallGeo, wallMat, 400); // 400 max walls
             wallMesh.castShadow = true; wallMesh.receiveShadow = true;
             
-            let instanceId = 0;
             const dummy = new THREE.Object3D();
             const wallShape = new CANNON.Box(new CANNON.Vec3(CELL_SIZE/2, WALL_HEIGHT/2, CELL_SIZE/2));
+            let idx = 0;
 
             for (let i = 0; i < MAZE_SIZE; i++) {
                 for (let j = 0; j < MAZE_SIZE; j++) {
                     if (mazeGrid[i][j] === 1) {
                         const x = (j - MAZE_SIZE / 2 + 0.5) * CELL_SIZE;
                         const z = (i - MAZE_SIZE / 2 + 0.5) * CELL_SIZE;
+                        
                         dummy.position.set(x, WALL_HEIGHT/2, z);
                         dummy.updateMatrix();
-                        wallMesh.setMatrixAt(instanceId++, dummy.matrix);
+                        wallMesh.setMatrixAt(idx++, dummy.matrix);
+
                         const body = new CANNON.Body({ mass: 0, material: mat });
                         body.addShape(wallShape);
                         body.position.copy(dummy.position);
@@ -261,11 +281,14 @@
                 }
             }
             scene.add(wallMesh);
-            const floorGeo = new THREE.PlaneGeometry(150, 150);
-            const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.9 });
+
+            // Floor
+            const floorGeo = new THREE.PlaneGeometry(200, 200);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
             const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
+            floor.rotation.x = -Math.PI/2;
             scene.add(floor);
+            
             const floorBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: mat });
             floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
             world.addBody(floorBody);
@@ -274,83 +297,103 @@
         function addHazards() {
             // Fire
             const firePos = new THREE.Vector3(8, 0.5, 8);
-            const fireLight = new THREE.PointLight(0xff4500, 10, 15);
+            const fireLight = new THREE.PointLight(0xff4500, 10, 10);
             fireLight.position.copy(firePos); fireLight.position.y = 2;
             scene.add(fireLight);
+            
             const geo = new THREE.BufferGeometry();
-            const posArr = new Float32Array(600);
-            for(let i=0; i<600; i++) posArr[i] = (Math.random()-0.5)*2.5;
-            geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
-            const mat = new THREE.PointsMaterial({ color: 0xffaa00, size: 0.4, transparent: true, blending: THREE.AdditiveBlending });
-            const fireMesh = new THREE.Points(geo, mat);
+            const pos = new Float32Array(300);
+            for(let i=0; i<300; i++) pos[i] = (Math.random()-0.5)*2;
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const fireMesh = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xff4500, size: 0.5 }));
             fireMesh.position.copy(firePos);
             scene.add(fireMesh);
             obstacles.push({ type: 'fire', mesh: fireMesh, pos: firePos, range: 2.5 });
 
-            // Knife
-            const knifeGeo = new THREE.BoxGeometry(0.2, 4, 3);
-            const knifeMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
-            const knife1 = new THREE.Mesh(knifeGeo, knifeMat);
-            knife1.position.set(-15, 2, -15);
-            scene.add(knife1);
-            obstacles.push({ type: 'knife', mesh: knife1, pos: new THREE.Vector3(-15,2,-15), range: 2.0, speed: 3 });
+            // Blade
+            const bladeGeo = new THREE.BoxGeometry(0.5, 4, 3);
+            const blade = new THREE.Mesh(bladeGeo, new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9 }));
+            blade.position.set(-15, 2, -15);
+            scene.add(blade);
+            obstacles.push({ type: 'knife', mesh: blade, pos: new THREE.Vector3(-15,2,-15), range: 2.5, speed: 4 });
 
             // Goal
-            const goalGeo = new THREE.BoxGeometry(2, 6, 2);
-            const goalMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            const goal = new THREE.Mesh(goalGeo, goalMat);
-            goal.position.set(30, 3, 30);
+            const goal = new THREE.Mesh(new THREE.BoxGeometry(2,10,2), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+            goal.position.set(30, 5, 30);
             scene.add(goal);
             obstacles.push({ type: 'goal', mesh: goal, pos: new THREE.Vector3(30,3,30), range: 2.0 });
         }
 
-        function drawMinimap() {
-            if(!showMinimap) return;
-            const ctx = minimapCtx;
-            const cw = ctx.canvas.width;
-            const ch = ctx.canvas.height;
-            const cellW = cw / MAZE_SIZE;
-            const cellH = ch / MAZE_SIZE;
+        function drawMap() {
+            if(!showMap) return;
 
-            // Clear and fill background
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, cw, ch);
+            const w = mapCanvas.width;
+            const h = mapCanvas.height;
+            const cellW = w / MAZE_SIZE;
+            const cellH = h / MAZE_SIZE;
 
-            // Draw Maze Grid
+            // Background
+            mapCtx.fillStyle = '#001100';
+            mapCtx.fillRect(0,0,w,h);
+
+            // Draw Grid
+            mapCtx.strokeStyle = '#004400';
+            mapCtx.lineWidth = 1;
+            mapCtx.beginPath();
+            for(let x=0; x<=w; x+=cellW) { mapCtx.moveTo(x,0); mapCtx.lineTo(x,h); }
+            for(let y=0; y<=h; y+=cellH) { mapCtx.moveTo(0,y); mapCtx.lineTo(w,y); }
+            mapCtx.stroke();
+
+            // Walls
+            mapCtx.fillStyle = '#00aa00';
             for(let i=0; i<MAZE_SIZE; i++) {
                 for(let j=0; j<MAZE_SIZE; j++) {
-                    ctx.fillStyle = mazeGrid[i][j] === 1 ? '#444' : '#888';
-                    ctx.fillRect(j * cellW, i * cellH, cellW, cellH);
+                    if(mazeGrid[i][j] === 1) {
+                        mapCtx.fillRect(j*cellW + 2, i*cellH + 2, cellW-4, cellH-4);
+                    }
                 }
             }
 
-            // Calculate Player Position on Canvas
-            // Map world coords back to grid coords relative to top-left (0,0)
+            // Player Logic
             const worldOffsetX = (MAZE_SIZE * CELL_SIZE) / 2;
             const worldOffsetZ = (MAZE_SIZE * CELL_SIZE) / 2;
-            const playerGridX = (playerBody.position.x + worldOffsetX) / CELL_SIZE;
-            const playerGridZ = (playerBody.position.z + worldOffsetZ) / CELL_SIZE;
-            const canvasX = playerGridX * cellW;
-            const canvasY = playerGridZ * cellH;
+            const px = (playerBody.position.x + worldOffsetX) / CELL_SIZE * cellW;
+            const py = (playerBody.position.z + worldOffsetZ) / CELL_SIZE * cellH;
 
-            // Draw Player Dot
-            ctx.fillStyle = '#00f';
-            ctx.beginPath();
-            ctx.arc(canvasX, canvasY, cellW/2, 0, Math.PI * 2);
-            ctx.fill();
+            // Draw Goal on Map
+            const gx = (30 + worldOffsetX) / CELL_SIZE * cellW;
+            const gy = (30 + worldOffsetZ) / CELL_SIZE * cellH;
+            mapCtx.fillStyle = '#00ff00';
+            mapCtx.beginPath(); mapCtx.arc(gx, gy, 10, 0, Math.PI*2); mapCtx.fill();
+            mapCtx.fillStyle = '#fff'; mapCtx.fillText('DESTINY', gx-20, gy-15);
 
-            // Draw Flashlight Cone based on Camera Yaw
+            // Draw Player Flashlight Cone
             const euler = new THREE.Euler(0, 0, 0, 'YXZ');
             euler.setFromQuaternion(camera.quaternion);
-            const yaw = euler.y; // Rotation around Y axis
+            const yaw = euler.y;
+
+            mapCtx.save();
+            mapCtx.translate(px, py);
+            mapCtx.rotate(-yaw + Math.PI); // Adjust for 2D rotation mismatch
             
-            ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-            ctx.beginPath();
-            ctx.moveTo(canvasX, canvasY);
-            // Calculate cone edges (approx +/- 20 degrees)
-            ctx.lineTo(canvasX + Math.sin(yaw - 0.3) * 30, canvasY + Math.cos(yaw - 0.3) * 30);
-            ctx.lineTo(canvasX + Math.sin(yaw + 0.3) * 30, canvasY + Math.cos(yaw + 0.3) * 30);
-            ctx.fill();
+            // Cone
+            mapCtx.fillStyle = 'rgba(200, 255, 200, 0.3)';
+            mapCtx.beginPath();
+            mapCtx.moveTo(0,0);
+            mapCtx.lineTo(-15, 60); // 60px view distance
+            mapCtx.lineTo(15, 60);
+            mapCtx.fill();
+
+            // Arrow
+            mapCtx.fillStyle = '#fff';
+            mapCtx.beginPath();
+            mapCtx.moveTo(0, -8);
+            mapCtx.lineTo(6, 6);
+            mapCtx.lineTo(0, 3);
+            mapCtx.lineTo(-6, 6);
+            mapCtx.fill();
+            
+            mapCtx.restore();
         }
 
         function onWindowResize() {
@@ -361,20 +404,18 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            if (!isGameActive) return;
+            
+            if(!isGameActive) return;
+
             const time = performance.now();
             const delta = (time - lastTime) / 1000;
             lastTime = time;
 
             world.step(1/60, delta, 3);
 
-            // --- FIX: W/S CONTROLS ---
-            // Swapped Forward/Backward logic here.
-            // Negative Z is forward relative to camera. 
-            // If W (moveForward) is pressed, we want negative Z input.
+            // Movement Logic
             const inputZ = Number(moveBackward) - Number(moveForward);
             const inputX = Number(moveRight) - Number(moveLeft);
-            
             const inputVector = new THREE.Vector3(inputX, 0, inputZ);
             inputVector.normalize();
 
@@ -388,44 +429,36 @@
             playerBody.velocity.z = inputVector.z * speed;
 
             camera.position.copy(playerBody.position);
-            if(inputVector.length() > 0) camera.position.y += Math.sin(time * 0.01) * 0.05;
+            
             if(Math.abs(playerBody.velocity.y) < 0.1) canJump = true;
 
-            // Animate Hazards & Check Collisions
+            // Hazards Animation
             const fire = obstacles.find(o => o.type === 'fire');
             if(fire) {
-                const positions = fire.mesh.geometry.attributes.position.array;
-                for(let i=1; i<positions.length; i+=3) {
-                    positions[i] += delta * 3; if(positions[i] > 3) positions[i] = 0;
+                const pos = fire.mesh.geometry.attributes.position.array;
+                for(let i=1; i<pos.length; i+=3) {
+                    pos[i] += delta * 4;
+                    if(pos[i] > 3) pos[i] = 0;
                 }
                 fire.mesh.geometry.attributes.position.needsUpdate = true;
             }
             const knife = obstacles.find(o => o.type === 'knife');
-            if(knife) knife.mesh.rotation.y += delta * knife.speed;
+            if(knife) knife.mesh.rotation.y += delta * 5;
 
+            // Collision
             for(let obs of obstacles) {
-                const dist = playerBody.position.distanceTo(obs.pos);
-                if(dist < obs.range) {
-                    if(obs.type === 'knife') endGame('SLICED! Life is sharp.');
-                    if(obs.type === 'fire') endGame('BURNED! Passion consumes.');
-                    if(obs.type === 'goal') endGame('DESTINY REACHED!', true);
+                if(playerBody.position.distanceTo(obs.pos) < obs.range) {
+                    if(obs.type === 'goal') alert('YOU FOUND THE PATH!');
+                    else {
+                        playerBody.position.set(0, 5, 0); // Respawn
+                        playerBody.velocity.set(0,0,0);
+                    }
                 }
             }
 
-            // Draw Minimap if active
-            drawMinimap();
-            
+            drawMap();
             renderer.render(scene, camera);
-        }
-
-        function endGame(msg, win=false) {
-            isGameActive = false; showMinimap = false;
-            document.exitPointerLock();
-            document.getElementById('minimap-container').style.display = 'none';
-            const blocker = document.getElementById('blocker');
-            blocker.style.display = 'flex'; blocker.style.opacity = '1';
-            blocker.innerHTML = `<h1 style="color:${win?'#0f0':'#f00'}">${msg}</h1><p>Refresh to Try Again</p>`;
         }
     </script>
 </body>
-</html>
+</html> 

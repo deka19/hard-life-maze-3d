@@ -3,25 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maze of Life: NEON OS</title>
+    <title>Maze of Life: REDUX</title>
     <style>
-        /* --- ADVANCED UI STYLING --- */
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; user-select: none; }
         
-        /* Loading Screen */
+        /* LOADER & ERROR SYSTEM */
         #loader {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 3000;
+            background: #020202; z-index: 3000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: #0f0;
+            color: #0f0; transition: opacity 0.5s;
         }
         .spinner {
-            width: 50px; height: 50px; border: 5px solid #020; border-top: 5px solid #0f0;
+            width: 50px; height: 50px; border: 4px solid #333; border-top: 4px solid #0f0;
             border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #error-log {
+            color: #ff3333; margin-top: 20px; font-size: 14px; max-width: 80%; 
+            text-align: center; background: rgba(50,0,0,0.5); padding: 10px; border: 1px solid #f00;
+            display: none; white-space: pre-wrap;
+        }
 
-        /* Main Menu */
+        /* GAME UI */
         #blocker {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 5, 0, 0.9);
@@ -30,95 +35,64 @@
             color: #fff; z-index: 2000;
         }
         h1 { 
-            font-size: 60px; text-transform: uppercase; letter-spacing: 10px; 
-            color: #0f0; text-shadow: 0 0 20px #0f0, 0 0 40px #0f0; margin: 0;
+            font-size: 5vw; text-transform: uppercase; letter-spacing: 5px; 
+            color: #0f0; text-shadow: 0 0 20px #0f0; margin: 0;
         }
-        .subtitle { color: #8f8; font-size: 18px; margin-bottom: 40px; text-shadow: 0 0 5px #0f0; }
-        
-        #startBtn {
-            padding: 15px 50px; border: 2px solid #0f0; color: #0f0; background: rgba(0,20,0,0.8);
-            font-size: 24px; cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 2px;
-            box-shadow: 0 0 15px rgba(0,255,0,0.2);
+        .btn {
+            margin-top: 30px; padding: 15px 50px; border: 2px solid #0f0; color: #0f0; background: rgba(0,20,0,0.8);
+            font-size: 24px; cursor: pointer; transition: 0.3s; text-transform: uppercase;
         }
-        #startBtn:hover { background: #0f0; color: #000; box-shadow: 0 0 40px #0f0; }
+        .btn:hover { background: #0f0; color: #000; box-shadow: 0 0 30px #0f0; }
 
-        /* HUD */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
-        .controls-hint { 
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            color: rgba(0, 255, 0, 0.7); font-size: 14px; text-shadow: 0 0 5px #000;
-        }
-
-        /* Tactical Map */
         #map-container {
             display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 600px; height: 600px; background: rgba(0, 10, 0, 0.95);
-            border: 2px solid #0f0; box-shadow: 0 0 100px rgba(0,255,0,0.1); z-index: 1500;
+            border: 2px solid #0f0; z-index: 1500;
         }
-        #map-label { 
-            position: absolute; top: 10px; width: 100%; text-align: center; color: #0f0; 
-            font-weight: bold; letter-spacing: 3px; background: rgba(0,0,0,0.8); padding: 5px 0;
-        }
-
-        /* Error Log */
-        #error-log {
-            position: absolute; top: 10px; left: 10px; color: #f00; z-index: 9999; 
-            font-family: monospace; background: rgba(0,0,0,0.8); padding: 10px; display: none;
-        }
+        #ui-layer { position: absolute; bottom: 20px; width: 100%; text-align: center; color: #0f0; pointer-events: none; z-index: 100; }
     </style>
 </head>
 <body>
+
     <div id="loader">
         <div class="spinner"></div>
-        <div id="loading-text">INITIALIZING NEON CORE...</div>
+        <div id="loading-text">CONNECTING TO NEON MAINFRAME...</div>
+        <div id="error-log"></div>
     </div>
 
-    <div id="error-log"></div>
-
     <div id="map-container">
-        <div id="map-label">TACTICAL GRID // LIVE FEED</div>
         <canvas id="mapCanvas" width="600" height="600"></canvas>
+        <div style="text-align:center; color:#0f0; padding:5px;">TACTICAL MAP (LIVE)</div>
     </div>
 
     <div id="blocker">
         <h1>Maze of Life</h1>
-        <div class="subtitle">NEON PROTOCOL v2.0</div>
-        <div id="startBtn">SYSTEM READY - INITIALIZE</div>
-        <div class="controls-hint" style="position:relative; top: 20px;">
-            [W,A,S,D] Move &nbsp;|&nbsp; [SPACE] Jump &nbsp;|&nbsp; [HOLD M] Map
-        </div>
+        <div style="color:#aaa; margin-top:10px;">PROTOCOL: SURVIVE</div>
+        <div class="btn" id="startBtn">INITIALIZE</div>
+        <div style="margin-top:20px; color:#666;">W,A,S,D to Move | SPACE to Jump | Hold M for Map</div>
     </div>
 
-    <div id="ui-layer">
-        <div class="controls-hint">OBJECTIVE: FIND THE GREEN SIGNAL</div>
-    </div>
+    <div id="ui-layer">FIND THE GREEN BEACON</div>
 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+    <script>
+        window.onerror = function(msg, url, line) {
+            const el = document.getElementById('error-log');
+            const ld = document.getElementById('loading-text');
+            const sp = document.querySelector('.spinner');
+            if(el && ld) {
+                sp.style.display = 'none';
+                ld.innerText = "SYSTEM FAILURE";
+                ld.style.color = "red";
+                el.style.display = 'block';
+                el.innerText = `ERROR: ${msg}\nLine: ${line}`;
             }
-        }
+        };
     </script>
 
     <script type="module">
-        // --- ERROR TRAP ---
-        window.onerror = function(msg, url, line) {
-            const errDiv = document.getElementById('error-log');
-            errDiv.style.display = 'block';
-            errDiv.innerHTML += `SYSTEM ERROR: ${msg}<br>`;
-        };
-
-        import * as THREE from 'three';
-        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-        import * as CANNON from 'cannon-es';
-
-        // --- CONSTANTS ---
-        const MAZE_SIZE = 25;
-        const CELL_SIZE = 4;
-        const WALL_HEIGHT = 5;
+        import * as THREE from 'https://esm.sh/three@0.160.0';
+        import { PointerLockControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/PointerLockControls.js';
+        import * as CANNON from 'https://esm.sh/cannon-es@0.20.0';
 
         // --- GLOBALS ---
         let camera, scene, renderer, controls;
@@ -129,22 +103,11 @@
         let isGameActive = false;
         let showMap = false;
 
-        // --- ASSET GENERATION (Textures) ---
-        function createNeonTexture(color) {
-            const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            // Dark base
-            ctx.fillStyle = '#000000'; ctx.fillRect(0,0,64,64);
-            // Neon border
-            ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.strokeRect(0,0,64,64);
-            // Inner glow
-            ctx.fillStyle = color; ctx.globalAlpha = 0.1; ctx.fillRect(10,10,44,44);
-            
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.magFilter = THREE.NearestFilter;
-            return tex;
-        }
+        const MAZE_SIZE = 25;
+        const CELL_SIZE = 4;
+        const WALL_HEIGHT = 5;
 
+        // --- MAZE GRID (1=Wall) ---
         const mazeGrid = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
@@ -169,82 +132,87 @@
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
-        // --- INIT FUNCTION ---
+        // --- MAIN INIT ---
         try {
             init();
             animate();
-            
-            // If we got here, systems are loaded.
+            // Reveal Menu
             setTimeout(() => {
-                document.getElementById('loader').style.display = 'none';
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
                 document.getElementById('blocker').style.display = 'flex';
-            }, 1000); // Small fake delay to ensure render loop is stable
-
+            }, 1500);
         } catch (e) {
-            console.error(e);
-            document.getElementById('loading-text').innerText = "CRITICAL FAILURE. CHECK CONSOLE.";
-            document.getElementById('loading-text').style.color = "red";
+            throw e; // Triggers window.onerror
         }
 
         function init() {
-            // 1. Scene
+            // 1. SCENE
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000500, 0.05); // Green-ish fog
-            scene.background = new THREE.Color(0x000500);
+            scene.fog = new THREE.FogExp2(0x000000, 0.04);
+            scene.background = new THREE.Color(0x000000);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer = new THREE.WebGLRenderer({ antialias: false }); // False for better performance
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
             document.body.appendChild(renderer.domElement);
 
-            // 2. Physics
+            // 2. PHYSICS
             world = new CANNON.World();
-            world.gravity.set(0, -30, 0); // Snappy gravity
-            const mat = new CANNON.Material();
-            const contact = new CANNON.ContactMaterial(mat, mat, { friction: 0.0, restitution: 0.0 });
-            world.addContactMaterial(contact);
+            world.gravity.set(0, -30, 0);
+            const defMat = new CANNON.Material();
+            const defContact = new CANNON.ContactMaterial(defMat, defMat, { friction: 0.0, restitution: 0.0 });
+            world.addContactMaterial(defContact);
 
-            // 3. Lights
-            const ambient = new THREE.AmbientLight(0xffffff, 0.2);
-            scene.add(ambient);
-            
-            // Player Flashlight
-            const light = new THREE.SpotLight(0x00ff00, 50, 40, Math.PI/4, 0.5, 1);
-            light.position.set(0,0,0);
-            light.target.position.set(0,0,-1);
-            camera.add(light);
-            camera.add(light.target);
+            // 3. LIGHTS
+            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+            const flashlight = new THREE.SpotLight(0x00ff00, 40, 40, Math.PI/4, 0.5, 1);
+            flashlight.position.set(0,0,0);
+            flashlight.target.position.set(0,0,-1);
+            camera.add(flashlight);
+            camera.add(flashlight.target);
             scene.add(camera);
 
-            // 4. Build Level
-            buildNeonMaze(mat);
+            // 4. LEVEL
+            buildMaze(defMat);
             addHazards();
 
-            // 5. Player
+            // 5. PLAYER
             const startX = (1 - MAZE_SIZE/2) * CELL_SIZE;
             const startZ = (1 - MAZE_SIZE/2) * CELL_SIZE;
-            playerBody = new CANNON.Body({ mass: 80, shape: new CANNON.Sphere(1), material: mat });
+            playerBody = new CANNON.Body({ mass: 80, shape: new CANNON.Sphere(1), material: defMat });
             playerBody.position.set(startX, 5, startZ);
-            playerBody.linearDamping = 0.9; // Air resistance
+            playerBody.linearDamping = 0.9;
             playerBody.fixedRotation = true;
             world.addBody(playerBody);
 
-            // 6. Controls
+            // 6. CONTROLS
             controls = new PointerLockControls(camera, renderer.domElement);
-            setupInteractions();
+            setupInput();
 
-            window.addEventListener('resize', onResize);
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
         }
 
-        function buildNeonMaze(mat) {
-            // Neon Materials
-            const wallTex = createNeonTexture('#00ff00');
-            const wallMat = new THREE.MeshBasicMaterial({ map: wallTex });
-            const geo = new THREE.BoxGeometry(CELL_SIZE, WALL_HEIGHT, CELL_SIZE);
+        function buildMaze(mat) {
+            // Generate simple textures
+            const cvs = document.createElement('canvas'); cvs.width=64; cvs.height=64;
+            const ctx = cvs.getContext('2d');
             
-            const mesh = new THREE.InstancedMesh(geo, wallMat, 625);
+            // Wall Texture (Neon Box)
+            ctx.fillStyle = '#000'; ctx.fillRect(0,0,64,64);
+            ctx.strokeStyle = '#0f0'; ctx.lineWidth=4; ctx.strokeRect(0,0,64,64);
+            const wallTex = new THREE.CanvasTexture(cvs);
+            wallTex.magFilter = THREE.NearestFilter;
+
+            const boxGeo = new THREE.BoxGeometry(CELL_SIZE, WALL_HEIGHT, CELL_SIZE);
+            const boxMat = new THREE.MeshBasicMaterial({ map: wallTex });
+            const instMesh = new THREE.InstancedMesh(boxGeo, boxMat, 500);
             
             const dummy = new THREE.Object3D();
             const shape = new CANNON.Box(new CANNON.Vec3(CELL_SIZE/2, WALL_HEIGHT/2, CELL_SIZE/2));
@@ -255,10 +223,9 @@
                     if(mazeGrid[i][j] === 1) {
                         const x = (j - MAZE_SIZE/2 + 0.5) * CELL_SIZE;
                         const z = (i - MAZE_SIZE/2 + 0.5) * CELL_SIZE;
-                        
                         dummy.position.set(x, WALL_HEIGHT/2, z);
                         dummy.updateMatrix();
-                        mesh.setMatrixAt(idx++, dummy.matrix);
+                        instMesh.setMatrixAt(idx++, dummy.matrix);
 
                         const body = new CANNON.Body({ mass: 0, material: mat });
                         body.addShape(shape);
@@ -267,74 +234,67 @@
                     }
                 }
             }
-            scene.add(mesh);
+            scene.add(instMesh);
 
-            // Floor with grid
-            const floorTex = createNeonTexture('#003300');
-            floorTex.repeat.set(50,50); floorTex.wrapS=THREE.RepeatWrapping; floorTex.wrapT=THREE.RepeatWrapping;
+            // Floor
+            ctx.fillStyle = '#010'; ctx.fillRect(0,0,64,64);
+            ctx.fillStyle = '#030'; ctx.fillRect(2,2,60,60);
+            const floorTex = new THREE.CanvasTexture(cvs);
+            floorTex.wrapS=THREE.RepeatWrapping; floorTex.wrapT=THREE.RepeatWrapping;
+            floorTex.repeat.set(50,50);
+            
             const floor = new THREE.Mesh(new THREE.PlaneGeometry(200,200), new THREE.MeshBasicMaterial({ map: floorTex }));
             floor.rotation.x = -Math.PI/2;
             scene.add(floor);
-
-            const floorBody = new CANNON.Body({ mass:0, shape: new CANNON.Plane(), material: mat });
-            floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
-            world.addBody(floorBody);
+            
+            const fb = new CANNON.Body({ mass:0, shape: new CANNON.Plane(), material: mat });
+            fb.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
+            world.addBody(fb);
         }
 
         function addHazards() {
-            // Fire (Red Neon Particles)
-            const firePos = new THREE.Vector3(8, 0, 8);
-            const pGeo = new THREE.BufferGeometry();
-            const pPos = new Float32Array(300);
-            for(let i=0; i<300; i++) pPos[i] = (Math.random()-0.5)*3;
-            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-            const fireMesh = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xff0000, size: 0.2 }));
-            fireMesh.position.copy(firePos);
-            scene.add(fireMesh);
-            
-            // Light for fire
-            const rLight = new THREE.PointLight(0xff0000, 5, 10);
-            rLight.position.copy(firePos); rLight.position.y = 2;
-            scene.add(rLight);
+            // Fire
+            const fPos = new THREE.Vector3(8,1,8);
+            const fGeo = new THREE.BufferGeometry();
+            const fArr = new Float32Array(300);
+            for(let i=0; i<300; i++) fArr[i] = (Math.random()-0.5)*3;
+            fGeo.setAttribute('position', new THREE.BufferAttribute(fArr, 3));
+            const fMesh = new THREE.Points(fGeo, new THREE.PointsMaterial({color:0xff0000, size:0.2}));
+            fMesh.position.copy(fPos);
+            scene.add(fMesh);
+            obstacles.push({type:'fire', mesh:fMesh, pos:fPos, range:2.5});
 
-            obstacles.push({ type: 'fire', pos: firePos, mesh: fireMesh, range: 2.5 });
+            // Blade
+            const bGeo = new THREE.BoxGeometry(0.2, 1, 6);
+            const bMesh = new THREE.Mesh(bGeo, new THREE.MeshBasicMaterial({color:0x00ffff}));
+            bMesh.position.set(-15, 2, -15);
+            scene.add(bMesh);
+            obstacles.push({type:'blade', mesh:bMesh, pos:new THREE.Vector3(-15,2,-15), range:3.5, speed:4});
 
-            // Blade (Blue Spinning Laser)
-            const bGeo = new THREE.BoxGeometry(0.2, 2, 6);
-            const bMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-            const blade = new THREE.Mesh(bGeo, bMat);
-            blade.position.set(-15, 2, -15);
-            scene.add(blade);
-            obstacles.push({ type: 'blade', pos: new THREE.Vector3(-15,2,-15), mesh: blade, range: 3.5, speed: 5 });
-
-            // Goal (Green Beacon)
-            const gGeo = new THREE.CylinderGeometry(0, 1, 4, 32);
-            const gMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-            const goal = new THREE.Mesh(gGeo, gMat);
-            goal.position.set(30, 2, 30);
-            scene.add(goal);
-            obstacles.push({ type: 'goal', pos: new THREE.Vector3(30,2,30), mesh: goal, range: 2 });
+            // Goal
+            const gGeo = new THREE.CylinderGeometry(0, 1, 4, 16);
+            const gMesh = new THREE.Mesh(gGeo, new THREE.MeshBasicMaterial({color:0x00ff00, wireframe:true}));
+            gMesh.position.set(30, 2, 30);
+            scene.add(gMesh);
+            obstacles.push({type:'goal', mesh:gMesh, pos:new THREE.Vector3(30,2,30), range:2.0});
         }
 
-        function setupInteractions() {
-            const startBtn = document.getElementById('startBtn');
-            const blocker = document.getElementById('blocker');
-            const mapContainer = document.getElementById('map-container');
+        function setupInput() {
+            const btn = document.getElementById('startBtn');
+            const blk = document.getElementById('blocker');
+            const mapC = document.getElementById('map-container');
 
-            startBtn.addEventListener('click', () => {
-                controls.lock();
-            });
-
+            btn.addEventListener('click', () => controls.lock());
+            
             controls.addEventListener('lock', () => {
-                blocker.style.display = 'none';
+                blk.style.display = 'none';
                 isGameActive = true;
             });
-
             controls.addEventListener('unlock', () => {
-                blocker.style.display = 'flex';
+                blk.style.display = 'flex';
                 isGameActive = false;
                 showMap = false;
-                mapContainer.style.display = 'none';
+                mapC.style.display = 'none';
             });
 
             document.addEventListener('keydown', (e) => {
@@ -344,9 +304,7 @@
                     case 'KeyA': moveLeft = true; break;
                     case 'KeyD': moveRight = true; break;
                     case 'Space': if(canJump) { playerBody.velocity.y = 15; canJump = false; } break;
-                    case 'KeyM': 
-                        if(isGameActive) { showMap = true; mapContainer.style.display = 'block'; }
-                        break;
+                    case 'KeyM': if(isGameActive) { showMap = true; mapC.style.display='block'; } break;
                 }
             });
             document.addEventListener('keyup', (e) => {
@@ -355,52 +313,41 @@
                     case 'KeyS': moveBackward = false; break;
                     case 'KeyA': moveLeft = false; break;
                     case 'KeyD': moveRight = false; break;
-                    case 'KeyM': showMap = false; mapContainer.style.display = 'none'; break;
+                    case 'KeyM': showMap = false; mapC.style.display='none'; break;
                 }
             });
         }
 
         function drawMap() {
             if(!showMap) return;
-            const canvas = document.getElementById('mapCanvas');
-            const ctx = canvas.getContext('2d');
-            const w = canvas.width, h = canvas.height;
-            const cw = w / MAZE_SIZE, ch = h / MAZE_SIZE;
-
-            // Clear
-            ctx.fillStyle = 'rgba(0,10,0,0.5)'; ctx.fillRect(0,0,w,h);
-
+            const cvs = document.getElementById('mapCanvas');
+            const ctx = cvs.getContext('2d');
+            const w = cvs.width, h = cvs.height;
+            const cw = w/MAZE_SIZE;
+            
+            ctx.fillStyle = '#001'; ctx.fillRect(0,0,w,h);
+            
             // Walls
-            ctx.fillStyle = '#0f0';
+            ctx.fillStyle = '#080';
             for(let i=0; i<MAZE_SIZE; i++) {
                 for(let j=0; j<MAZE_SIZE; j++) {
-                    if(mazeGrid[i][j]===1) ctx.fillRect(j*cw, i*ch, cw-1, ch-1);
+                    if(mazeGrid[i][j]===1) ctx.fillRect(j*cw+1, i*cw+1, cw-2, cw-2);
                 }
             }
 
             // Player
-            const worldW = MAZE_SIZE*CELL_SIZE;
-            const px = (playerBody.position.x + worldW/2) / worldW * w;
-            const py = (playerBody.position.z + worldW/2) / worldW * h;
+            const ww = MAZE_SIZE*CELL_SIZE;
+            const px = (playerBody.position.x + ww/2)/ww * w;
+            const py = (playerBody.position.z + ww/2)/ww * h;
             
             ctx.fillStyle = '#fff';
-            ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(px,py,5,0,6.28); ctx.fill();
 
-            // Direction Cone
-            const euler = new THREE.Euler(0,0,0,'YXZ');
-            euler.setFromQuaternion(camera.quaternion);
-            
-            ctx.fillStyle = 'rgba(255,255,255,0.2)';
-            ctx.beginPath(); ctx.moveTo(px,py);
-            ctx.lineTo(px + Math.sin(-euler.y + Math.PI - 0.5)*50, py + Math.cos(-euler.y + Math.PI - 0.5)*50);
-            ctx.lineTo(px + Math.sin(-euler.y + Math.PI + 0.5)*50, py + Math.cos(-euler.y + Math.PI + 0.5)*50);
-            ctx.fill();
-        }
-
-        function onResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            // Goal
+            const gx = (30 + ww/2)/ww * w;
+            const gy = (30 + ww/2)/ww * h;
+            ctx.fillStyle = '#0f0'; ctx.font="20px Arial"; ctx.fillText("DESTINY", gx-40, gy-10);
+            ctx.beginPath(); ctx.arc(gx,gy,8,0,6.28); ctx.fill();
         }
 
         function animate() {
@@ -408,12 +355,12 @@
             if(!isGameActive) return;
 
             const time = performance.now();
-            const delta = Math.min((time - lastTime) / 1000, 0.1);
+            const delta = Math.min((time-lastTime)/1000, 0.1);
             lastTime = time;
 
             world.step(1/60, delta, 3);
 
-            // Movement
+            // Move
             const inputZ = Number(moveBackward) - Number(moveForward);
             const inputX = Number(moveRight) - Number(moveLeft);
             const vec = new THREE.Vector3(inputX, 0, inputZ).normalize();
@@ -422,35 +369,32 @@
             euler.setFromQuaternion(camera.quaternion);
             vec.applyAxisAngle(new THREE.Vector3(0,1,0), euler.y);
 
-            const speed = 15;
-            playerBody.velocity.x = vec.x * speed;
-            playerBody.velocity.z = vec.z * speed;
+            playerBody.velocity.x = vec.x * 15;
+            playerBody.velocity.z = vec.z * 15;
             
             if(Math.abs(playerBody.velocity.y) < 0.1) canJump = true;
-
-            // Sync Camera
             camera.position.copy(playerBody.position);
 
-            // Animation
+            // Animate Hazards
             const fire = obstacles.find(o=>o.type==='fire');
             if(fire) {
                 const arr = fire.mesh.geometry.attributes.position.array;
                 for(let i=1; i<arr.length; i+=3) {
-                    arr[i] += delta * 5; if(arr[i]>4) arr[i]=0;
+                    arr[i] += delta*4; if(arr[i]>4) arr[i]=0;
                 }
                 fire.mesh.geometry.attributes.position.needsUpdate = true;
             }
             const blade = obstacles.find(o=>o.type==='blade');
-            if(blade) blade.mesh.rotation.y += delta * 10;
+            if(blade) blade.mesh.rotation.y += delta*5;
             const goal = obstacles.find(o=>o.type==='goal');
-            if(goal) { goal.mesh.rotation.y += delta; goal.mesh.rotation.x += delta*0.5; }
+            if(goal) { goal.mesh.rotation.x += delta; goal.mesh.rotation.y += delta; }
 
             // Collisions
-            for(let obs of obstacles) {
-                if(playerBody.position.distanceTo(obs.pos) < obs.range) {
-                    if(obs.type === 'goal') {
+            for(let o of obstacles) {
+                if(playerBody.position.distanceTo(o.pos) < o.range) {
+                    if(o.type==='goal') {
                         document.exitPointerLock();
-                        alert("DESTINY ACHIEVED.");
+                        alert("DESTINY ACHIEVED");
                         playerBody.position.set(0,5,0);
                     } else {
                         // Respawn

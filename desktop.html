@@ -2,458 +2,115 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Maze Final: Smooth Movement</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delhi Student Relief | Emergency Fund</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; }
-        
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 10;
-        }
-
-        #message-box {
-            position: absolute; top: 50%; left: 50%; 
-            transform: translate(-50%, -50%);
-            text-align: center; color: white; background: rgba(0,0,0,0.85);
-            padding: 40px; border: 2px solid #fff; border-radius: 10px;
-            pointer-events: auto; cursor: pointer; min-width: 300px;
-        }
-        h1 { margin: 0 0 10px 0; letter-spacing: 5px; text-transform: uppercase; }
-        p { font-size: 1.1rem; color: #ccc; margin: 5px 0; }
-        .accent { color: #0f0; font-weight: bold; }
-
-        #minimap-container {
-            position: absolute; top: 20px; right: 20px;
-            width: 200px; height: 200px; background: #000;
-            border: 2px solid #555; border-radius: 4px; z-index: 5;
-            opacity: 0.3; transition: opacity 0.2s;
-        }
-        #minimap { width: 100%; height: 100%; }
-
-        #crosshair {
-            position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
-            background: rgba(255, 255, 255, 0.5); border-radius: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        #timer {
-            position: absolute; top: 20px; left: 20px;
-            font-size: 28px; color: #fff; font-weight: bold;
-            text-shadow: 2px 2px 0 #000;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body>
+<body class="bg-gray-50 text-gray-900 antialiased">
 
-    <div id="ui-layer">
-        <div id="timer">TIME: 00:00</div>
-        <div id="crosshair"></div>
-        <div id="minimap-container">
-            <canvas id="minimap"></canvas>
+    <!-- Hero Section -->
+    <header class="bg-white border-b border-gray-200 pt-12 pb-8 px-4 text-center">
+        <div class="max-w-2xl mx-auto">
+            <span class="bg-red-100 text-red-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Live Emergency Drive</span>
+            <h1 class="text-4xl font-extrabold mt-4 mb-4 leading-tight text-gray-900">Emergency Food & Sanitation for Stranded Students</h1>
+            <p class="text-lg text-gray-600 mb-8">We are on the ground in Delhi providing hot meals, clean water, and heavy-duty sanitation to prevent a health crisis. We need your help to keep the supply going.</p>
+            
+            <!-- Live Progress Bar -->
+            <div class="bg-gray-100 rounded-full h-4 w-full mb-2 overflow-hidden shadow-inner">
+                <!-- Update this width percentage manually as funds roll in -->
+                <div class="bg-blue-600 w-1/4 h-full rounded-full"></div>
+            </div>
+            <div class="flex justify-between text-sm font-semibold text-gray-600 mb-8">
+                <span>₹20,000 Raised</span>
+                <span>Goal: ₹80,000</span>
+            </div>
+
+            <!-- UPI Payment Section -->
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 max-w-sm mx-auto mb-4">
+                <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded mb-3 inline-block">Instant Direct Transfer</span>
+                <h3 class="text-lg font-bold mb-4">Scan to Fund a Plate</h3>
+                
+                <div class="bg-gray-50 p-4 rounded-lg mb-4 flex justify-center border border-gray-200">
+                    <!-- Ensure your QR image is named qr-code.jpg and sits in the same repo folder -->
+                    <img src="qr-code.jpg" alt="Official UPI QR Code" class="w-48 h-48 object-contain">
+                </div>
+                
+                <!-- UPI ID with Copy Button -->
+                <div class="bg-gray-50 border border-gray-200 rounded p-3 mb-4 flex items-center justify-between text-left">
+                    <div>
+                        <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Official UPI ID</p>
+                        <p class="text-sm font-mono font-bold text-gray-900" id="upi-id">BHARATPE2C0M0D6J5E45397@unitype</p>
+                    </div>
+                    <button onclick="copyUPI()" id="copy-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold py-1.5 px-3 rounded transition-colors focus:outline-none">
+                        Copy
+                    </button>
+                </div>
+
+                <!-- Mobile Tap to Pay Link -->
+                <a href="upi://pay?pa=BHARATPE2C0M0D6J5E45397@unitype&pn=Student%20Food%20Relief" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-all md:hidden text-center shadow-md">
+                    Tap to Pay on Mobile
+                </a>
+                <p class="text-xs text-gray-500 mt-3 md:hidden">Opens GPay, PhonePe, or Paytm directly.</p>
+            </div>
+            <p class="text-xs text-gray-500 mt-4">⚠️ Send us a DM on Instagram with your screenshot to update the progress bar!</p>
         </div>
-        <div id="message-box">
-            <h1>The Stone Maze</h1>
-            <p>Click to Start</p>
-            <p><strong>WASD</strong> to Move</p>
-            <p><strong>SHIFT</strong> (Hold) for Map</p>
-            <p class="accent">Escape the Maze</p>
+    </header>
+
+    <!-- Ground Reality Section -->
+    <section class="max-w-3xl mx-auto py-12 px-4">
+        <h2 class="text-2xl font-bold mb-6 border-l-4 border-blue-600 pl-3">The Ground Reality</h2>
+        <p class="text-gray-700 mb-4 leading-relaxed">The situation in Delhi is overwhelming. Hundreds of students are stranded without basic necessities. What started as a food crisis is rapidly turning into a health hazard due to accumulating waste.</p>
+        <p class="text-gray-700 mb-6 leading-relaxed">Our volunteer network is operating round-the-clock to distribute hot meals and deploy industrial dustbins and sanitation kits to prevent infections.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mt-8">
+            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                <div class="text-3xl mb-2">🍛</div>
+                <h3 class="font-bold text-lg">Food & Water</h3>
+                <p class="text-sm text-gray-600 mt-2">Sourcing hot meals from verified local kitchens.</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                <div class="text-3xl mb-2">🗑️</div>
+                <h3 class="font-bold text-lg">Sanitation</h3>
+                <p class="text-sm text-gray-600 mt-2">Buying heavy-duty dustbins and cleaning gear.</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                <div class="text-3xl mb-2">🩹</div>
+                <h3 class="font-bold text-lg">Medical Kits</h3>
+                <p class="text-sm text-gray-600 mt-2">Distributing ORS, masks, and basic first aid.</p>
+            </div>
         </div>
-    </div>
+    </section>
 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-            }
-        }
-    </script>
+    <!-- Transparency/Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-8 text-center text-sm px-4">
+        <p class="mb-2 font-semibold text-gray-200">Organized by Student Food Relief | Active in Delhi</p>
+        <p>Zero middlemen. Every rupee goes directly to ground supplies.</p>
+    </footer>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { PointerLockControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/PointerLockControls.js';
-
-        // --- AUDIO SYSTEM ---
-        let audioCtx = null;
-        
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
-
-        function playFootstep() {
-            if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            const filter = audioCtx.createBiquadFilter();
-
-            // Lower thud sound
-            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.1);
-            
-            filter.type = 'lowpass';
-            filter.frequency.value = 150;
-
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.15);
-        }
-
-        function playWinSound() {
-            if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(220, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(880, audioCtx.currentTime + 0.5);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 1.5);
-        }
-
-        // --- CONFIG ---
-        const WALL_HEIGHT = 4;
-        const MOVEMENT_SPEED = 30.0;
-        const MAP_SCALE = 3;
-        const PLAYER_HEIGHT = 1.6;
-        
-        // Map: 1=Wall, 0=Path, 2=Start, 3=Exit
-        const mazeMap = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [2,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1],
-            [1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,1,0,1],
-            [1,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
-            [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
-            [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1],
-            [1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,1,0,1],
-            [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,1],
-            [1,1,1,0,1,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1],
-            [1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,1,0,1],
-            [1,0,1,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1,0,1],
-            [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1],
-            [1,0,1,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,3,1], 
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-        ];
-
-        let camera, scene, renderer, controls;
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-        let prevTime = performance.now();
-        let headBobTimer = 0;
-        
-        const velocity = new THREE.Vector3();
-        const direction = new THREE.Vector3();
-        const wallColliders = [];
-        const mapSize = { rows: mazeMap.length, cols: mazeMap[0].length };
-        const wallsMeshArray = [];
-
-        let gameActive = false;
-        let startTime = 0;
-        let isWon = false;
-        let exitPosition = new THREE.Vector3();
-
-        function createTexture(type) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = type === 'wall' ? '#666' : '#2a2a2a';
-            ctx.fillRect(0, 0, 256, 256);
-
-            for(let i=0; i<4000; i++) {
-                ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)';
-                ctx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
-            }
-            if(type === 'wall'){
-                ctx.strokeStyle = '#444'; ctx.lineWidth=3; ctx.strokeRect(0,0,256,256);
-            }
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        init();
-        animate();
-
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
-            scene.fog = new THREE.Fog(0x050505, 0, 25);
-
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-
-            const ambient = new THREE.AmbientLight(0x606060);
-            scene.add(ambient);
-            
-            const torch = new THREE.SpotLight(0xffffff, 2.5, 30, Math.PI/3, 0.5);
-            torch.position.set(0,0,0);
-            torch.target.position.set(0,0,-1);
-            camera.add(torch);
-            camera.add(torch.target);
-            scene.add(camera);
-
-            const wallTex = createTexture('wall');
-            wallTex.magFilter = THREE.NearestFilter;
-            const floorTex = createTexture('floor');
-            floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
-            floorTex.repeat.set(10,10);
-            
-            const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.8 });
-            const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 1.0 });
-            const exitMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.6 });
-
-            const boxGeo = new THREE.BoxGeometry(MAP_SCALE, WALL_HEIGHT, MAP_SCALE);
-
-            for (let z = 0; z < mapSize.rows; z++) {
-                for (let x = 0; x < mapSize.cols; x++) {
-                    let cell = mazeMap[z][x];
-                    let posX = x * MAP_SCALE;
-                    let posZ = z * MAP_SCALE;
-
-                    if (cell === 1) {
-                        const wall = new THREE.Mesh(boxGeo, wallMat.clone()); 
-                        wall.position.set(posX, WALL_HEIGHT / 2, posZ);
-                        scene.add(wall);
-                        // Store bounding box for collision
-                        const box = new THREE.Box3().setFromObject(wall);
-                        // Shrink wall collider slightly to prevent sticking
-                        box.expandByScalar(-0.1); 
-                        wallColliders.push(box);
-                        wallsMeshArray.push(wall);
-                    } else if (cell === 2) {
-                        camera.position.set(posX, PLAYER_HEIGHT, posZ);
-                    } else if (cell === 3) {
-                        const exit = new THREE.Mesh(new THREE.BoxGeometry(MAP_SCALE, WALL_HEIGHT, MAP_SCALE), exitMat);
-                        exit.position.set(posX, WALL_HEIGHT/2, posZ);
-                        scene.add(exit);
-                        exitPosition.set(posX, WALL_HEIGHT, posZ);
-                        const exitLight = new THREE.PointLight(0x00ff00, 2, 8);
-                        exitLight.position.set(posX, 2, posZ);
-                        scene.add(exitLight);
-                    }
-                }
-            }
-
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(150, 150), floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            scene.add(floor);
-
-            controls = new PointerLockControls(camera, document.body);
-            const msgBox = document.getElementById('message-box');
-
-            msgBox.addEventListener('click', () => {
-                initAudio();
-                if(!isWon) controls.lock();
-            });
-
-            controls.addEventListener('lock', () => {
-                msgBox.style.display = 'none';
-                if (!gameActive && !isWon) {
-                    gameActive = true;
-                    startTime = performance.now();
-                }
-            });
-
-            controls.addEventListener('unlock', () => {
-                if(!isWon) {
-                    msgBox.style.display = 'block';
-                    msgBox.innerHTML = "<h1>Paused</h1><p>Click to Resume</p>";
-                }
-            });
-
-            const onKeyDown = (e) => {
-                switch (e.code) {
-                    case 'KeyW': moveForward = true; break;
-                    case 'KeyA': moveLeft = true; break;
-                    case 'KeyS': moveBackward = true; break;
-                    case 'KeyD': moveRight = true; break;
-                    case 'ShiftLeft': case 'ShiftRight': 
-                        document.getElementById('minimap-container').style.opacity = '1.0'; break;
-                }
-            };
-            const onKeyUp = (e) => {
-                switch (e.code) {
-                    case 'KeyW': moveForward = false; break;
-                    case 'KeyA': moveLeft = false; break;
-                    case 'KeyS': moveBackward = false; break;
-                    case 'KeyD': moveRight = false; break;
-                    case 'ShiftLeft': case 'ShiftRight': 
-                        document.getElementById('minimap-container').style.opacity = '0.3'; break;
-                }
-            };
-            document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        }
-
-        // IMPROVED COLLISION DETECTION (Returns True if hitting wall)
-        function checkCollision(position) {
-            const playerBox = new THREE.Box3();
-            const radius = 0.4; // Player "Fatness"
-            playerBox.min.set(position.x - radius, 0.5, position.z - radius);
-            playerBox.max.set(position.x + radius, 2.5, position.z + radius);
-            
-            for (const wall of wallColliders) {
-                if (playerBox.intersectsBox(wall)) return true;
-            }
-            return false;
-        }
-
-        function updateTimer() {
-            if(!gameActive || isWon) return;
-            const now = performance.now();
-            const diff = Math.floor((now - startTime) / 1000);
-            const m = Math.floor(diff / 60).toString().padStart(2,'0');
-            const s = (diff % 60).toString().padStart(2,'0');
-            document.getElementById('timer').innerText = `TIME: ${m}:${s}`;
-        }
-
-        function updateMinimap() {
-            const c = document.getElementById('minimap');
-            const ctx = c.getContext('2d');
-            c.width = 150; c.height = 150;
-            const cellW = c.width / mapSize.cols;
-            const cellH = c.height / mapSize.rows;
-
-            ctx.clearRect(0,0,150,150);
-            for(let z=0; z<mapSize.rows; z++){
-                for(let x=0; x<mapSize.cols; x++){
-                    let val = mazeMap[z][x];
-                    if(val === 1) { ctx.fillStyle = '#666'; ctx.fillRect(x*cellW, z*cellH, cellW, cellH); }
-                    else if(val === 3) { ctx.fillStyle = '#0f0'; ctx.fillRect(x*cellW, z*cellH, cellW, cellH); }
-                }
-            }
-            const px = camera.position.x / MAP_SCALE;
-            const pz = camera.position.z / MAP_SCALE;
-            ctx.fillStyle = 'red';
-            ctx.beginPath();
-            ctx.arc(px * cellW, pz * cellH, 3, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        function triggerWin() {
-            isWon = true;
-            gameActive = false;
-            controls.unlock();
-            playWinSound();
-            
-            const finalTime = document.getElementById('timer').innerText.replace("TIME: ", "");
-            const msg = document.getElementById('message-box');
-            msg.style.display = 'block';
-            msg.innerHTML = `
-                <h1 style="color:#0f0; font-size: 3rem;">ESCAPED!</h1>
-                <p>Time: <strong style="color:white; font-size:2rem">${finalTime}</strong></p>
-                <p style="margin-top:20px;">Refresh to play again</p>
-            `;
-            
-            // Teleport camera for cinematic view
-            camera.position.set(exitPosition.x, exitPosition.y + 12, exitPosition.z + 12);
-            camera.lookAt(exitPosition);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const time = performance.now();
-            const delta = Math.min((time - prevTime) / 1000, 0.1); // Cap delta to prevent lag glitches
-            
-            if(isWon) {
-                // Victory Spin
-                const radius = 15;
-                const speed = 0.5;
-                camera.position.x = exitPosition.x + radius * Math.cos(time * 0.001 * speed);
-                camera.position.z = exitPosition.z + radius * Math.sin(time * 0.001 * speed);
-                camera.lookAt(exitPosition.x, 0, exitPosition.z);
+    <!-- Copy to Clipboard Logic -->
+    <script>
+        function copyUPI() {
+            const upiText = document.getElementById("upi-id").innerText;
+            navigator.clipboard.writeText(upiText).then(() => {
+                const btn = document.getElementById("copy-btn");
+                // Visual feedback that it copied successfully
+                btn.innerText = "Copied!";
+                btn.classList.replace("bg-gray-200", "bg-green-100");
+                btn.classList.replace("text-gray-800", "text-green-800");
                 
-                // Disco Lights
-                const hue = (time * 0.1) % 360;
-                wallsMeshArray.forEach(wall => { wall.material.color.setHSL(hue/360, 1, 0.5); });
-                
-                renderer.render(scene, camera);
-                prevTime = time;
-                return;
-            }
-
-            if (controls.isLocked) {
-                // 1. Friction / Damping
-                velocity.x -= velocity.x * 10.0 * delta;
-                velocity.z -= velocity.z * 10.0 * delta;
-
-                direction.z = Number(moveForward) - Number(moveBackward);
-                direction.x = Number(moveRight) - Number(moveLeft);
-                direction.normalize();
-
-                if (moveForward || moveBackward) velocity.z -= direction.z * MOVEMENT_SPEED * delta;
-                if (moveLeft || moveRight) velocity.x -= direction.x * MOVEMENT_SPEED * delta;
-
-                // 2. Separate Axis Movement (Wall Sliding Fix)
-                // Move X
-                controls.moveRight(-velocity.x * delta);
-                if (checkCollision(camera.position)) {
-                    // If hit wall moving X, undo X ONLY
-                    controls.moveRight(velocity.x * delta);
-                    velocity.x = 0;
-                }
-                
-                // Move Z
-                controls.moveForward(-velocity.z * delta);
-                if (checkCollision(camera.position)) {
-                    // If hit wall moving Z, undo Z ONLY
-                    controls.moveForward(velocity.z * delta);
-                    velocity.z = 0;
-                }
-
-                // 3. Head Bobbing (Fixes "Floating Box" feel)
-                const isMoving = (moveForward || moveBackward || moveLeft || moveRight);
-                if (isMoving) {
-                    headBobTimer += delta * 15; // Bob speed
-                    camera.position.y = PLAYER_HEIGHT + Math.sin(headBobTimer) * 0.1;
-                    
-                    // Trigger footstep sound at bottom of sine wave
-                    if (Math.sin(headBobTimer) < -0.8 && (time - prevTime > 20)) {
-                         // Simple debounce logic is handled inside audio func mostly, 
-                         // but ideally check here.
-                         // Using a simplified check:
-                         if(Math.floor(headBobTimer / Math.PI) % 2 !== 0 && Math.random() > 0.8) {
-                             playFootstep();
-                         }
-                    }
-                } else {
-                    // Return to neutral height
-                    camera.position.y = THREE.MathUtils.lerp(camera.position.y, PLAYER_HEIGHT, delta * 10);
-                    headBobTimer = 0;
-                }
-                
-                // 4. Win Check
-                const pX = Math.round(camera.position.x / MAP_SCALE);
-                const pZ = Math.round(camera.position.z / MAP_SCALE);
-                if(mazeMap[pZ] && mazeMap[pZ][pX] === 3) {
-                    triggerWin();
-                }
-
-                updateTimer();
-            }
-
-            updateMinimap();
-            prevTime = time;
-            renderer.render(scene, camera);
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    btn.innerText = "Copy";
+                    btn.classList.replace("bg-green-100", "bg-gray-200");
+                    btn.classList.replace("text-green-800", "text-gray-800");
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
         }
     </script>
 </body>
